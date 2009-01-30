@@ -47,8 +47,8 @@ sendNotice :: ZNotice -> IO ()
 sendNotice note = withZNotice_t note $ \c_note -> do
                     z_send_notice c_note cert >>= comErr
     where cert = case z_auth note of
-                   AuthYes -> z_make_authentication
-                   _       -> nullFunPtr
+                   Unauthenticated -> z_make_authentication
+                   _               -> nullFunPtr
 
 cancelSubscriptions :: IO ()
 cancelSubscriptions = z_cancel_subscriptions defaultPort >>= comErr
@@ -73,7 +73,7 @@ emptyNotice = ZNotice { z_version     = undefined
                       , z_sender      = Nothing
                       , z_default_fmt = defaultFmt
                       , z_kind        = undefined
-                      , z_auth        = AuthNo
+                      , z_auth        = Unauthenticated
                       , z_authent     = undefined
                       , z_fields      = []
                       , z_time        = undefined

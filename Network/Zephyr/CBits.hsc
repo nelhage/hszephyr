@@ -38,7 +38,7 @@ newtype ZNoticeKind = ZNoticeKind { unZNoticeKind :: CInt }
  , kind_stat      = STAT
  }
 
-data ZAuth = AuthYes | AuthNo | AuthFailed
+data ZAuth = Authenticated | Unauthenticated | AuthenticationFailed
            deriving (Show, Eq, Enum, Bounded)
 
 data ZSubscription = ZSubscription { sub_class     :: B.ByteString
