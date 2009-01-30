@@ -6,8 +6,9 @@ Stability:          experimental
 Build-Type:         Simple
 Cabal-Version:      >= 1.2
 Extra-Source-Files:
-   Network/Zephyr.hsc, Network/Zephyr/Notice.hsc
+   Network/Zephyr/CBits.hsc
 Library
   Build-Depends:      base, mtl, bytestring, time
   Extra-Libraries:    zephyr, com_err
-  Exposed-Modules:    Network.Zephyr, Network.Zephyr.Notice
+  Exposed-Modules:    Network.Zephyr
+  Other-Modules:      Network.Zephyr.CBits
