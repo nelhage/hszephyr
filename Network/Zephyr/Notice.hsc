@@ -107,4 +107,4 @@ withZNotice_t note comp = do
                              #{poke ZNotice_t, z_sender} c_note c_sender
                              comp c_note
       where message :: B.ByteString
-            message = B.intercalate (B.pack "\0") $ z_fields note
+            message = B.append (B.intercalate (B.pack "\0") $ z_fields note) (B.pack "\0")
