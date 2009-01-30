@@ -46,6 +46,9 @@ type ZAuthProc = FunPtr (Ptr ZNotice -> CString -> CInt -> IO (Ptr CInt))
 foreign import ccall unsafe "ZSendNotice"
         z_send_notice :: Ptr ZNotice -> ZAuthProc -> IO Code_t
 
+foreign import ccall unsafe "&ZMakeAuthentication"
+        z_make_authentication :: ZAuthProc
+
 error_message :: Code_t -> String
 error_message c = unsafePerformIO $ c_error_message c >>= peekCString
 
@@ -67,4 +70,7 @@ openPort = alloca $ \ptr -> do
 
 sendNotice :: ZNotice -> IO ()
 sendNotice note = withZNotice_t note $ \c_note -> do
-                    z_send_notice c_note nullFunPtr >>= comErr
+                    z_send_notice c_note cert >>= comErr
+    where cert = if z_auth note
+                 then z_make_authentication
+                 else nullFunPtr

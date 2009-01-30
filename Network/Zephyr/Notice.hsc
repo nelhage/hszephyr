@@ -56,7 +56,7 @@ data ZNotice = ZNotice { z_version     :: B.ByteString
                        , z_sender      :: Maybe B.ByteString
                        , z_default_fmt :: B.ByteString
                        , z_kind        :: ZNoticeKind
-                       , z_auth        :: Int
+                       , z_auth        :: Bool
                        , z_authent     :: B.ByteString
                        , z_fields      :: [B.ByteString]
                        , z_time        :: Time.LocalTime
@@ -74,7 +74,7 @@ emptyNotice = ZNotice { z_version     = undefined
                       , z_sender      = Nothing
                       , z_default_fmt = defaultFmt
                       , z_kind        = undefined
-                      , z_auth        = 0
+                      , z_auth        = False
                       , z_authent     = undefined
                       , z_fields      = []
                       , z_time        = undefined
