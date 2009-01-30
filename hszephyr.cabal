@@ -12,3 +12,8 @@ Library
   Extra-Libraries:    zephyr, com_err
   Exposed-Modules:    Network.Zephyr
   Other-Modules:      Network.Zephyr.CBits
+Executable test
+  Build-Depends:      base, mtl, bytestring, time
+  Extra-Libraries:    zephyr, com_err
+  Other-Modules:      Network.Zephyr.CBits, Network.Zephyr
+  Main-Is:            Test.hs
