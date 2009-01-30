@@ -131,6 +131,9 @@ foreign import ccall unsafe "ZClosePort"
 foreign import ccall unsafe "ZGetSender"
         z_get_sender :: IO CString
 
+foreign import ccall unsafe "&__Zephyr_realm"
+        z_realm      :: CString
+
 type ZAuthProc = FunPtr (Ptr ZNotice -> CString -> CInt -> IO (Ptr CInt))
 
 foreign import ccall unsafe "ZSendNotice"

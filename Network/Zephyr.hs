@@ -1,4 +1,4 @@
-module Network.Zephyr ( initialize, openPort, getSender, sendNotice
+module Network.Zephyr ( initialize, openPort, getSender, getRealm, sendNotice
                       , cancelSubscriptions, subscribeTo, unsubscribeTo
                       , defaultFmt, emptyNotice
                       , ZNotice(..), ZNoticeKind(..)
@@ -36,6 +36,9 @@ initialize = z_initialize >>= comErr
 
 getSender :: IO String
 getSender = z_get_sender >>= peekCString
+
+getRealm  :: IO String
+getRealm  = peekCString z_realm
 
 openPort :: IO Int
 openPort = alloca $ \ptr -> do
