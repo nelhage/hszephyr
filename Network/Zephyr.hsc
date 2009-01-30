@@ -46,10 +46,6 @@ type ZAuthProc = FunPtr (Ptr ZNotice -> CString -> CInt -> IO (Ptr CInt))
 foreign import ccall unsafe "ZSendNotice"
         z_send_notice :: Ptr ZNotice -> ZAuthProc -> IO Code_t
 
--- This requires -fvia-C
--- foreign import ccall "&__Zephyr_realm"
---        z_realm :: Ptr CString
-
 error_message :: Code_t -> String
 error_message c = unsafePerformIO $ c_error_message c >>= peekCString
 
