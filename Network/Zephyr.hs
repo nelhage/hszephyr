@@ -14,14 +14,22 @@ import Foreign.C.Types
 import Foreign.C.String
 
 import System.IO.Unsafe
+import System.Posix.Types (Fd)
 
 import qualified Data.ByteString.Char8 as B
 
 import Control.Monad
 import Control.Monad.Trans
 import Control.Exception
+import Control.Concurrent
 
 import Network.Zephyr.CBits
+
+zephyrMVar :: MVar ()
+zephyrMVar = unsafePerformIO $ newMVar ()
+
+withZephyr :: IO a -> IO a
+withZephyr io = withMVar zephyrMVar $ \ _ -> io
 
 defaultPort :: Port
 defaultPort = 0
@@ -34,42 +42,42 @@ initialize :: IO ()
 initialize = z_initialize >>= comErr
 
 getSender :: IO String
-getSender = z_get_sender >>= peekCString
+getSender = withZephyr $ z_get_sender >>= peekCString
 
 getRealm  :: IO String
-getRealm  = peekCString z_realm
+getRealm  = withZephyr $ peekCString z_realm
 
 openPort :: IO Int
-openPort = alloca $ \ptr -> do
+openPort = withZephyr $ alloca $ \ptr -> do
              poke ptr 0
              z_open_port ptr >>= comErr
              fromIntegral `liftM` peek ptr
 
 sendNotice :: ZNotice -> IO ()
 sendNotice note = withZNotice note $ \c_note -> do
-                    z_send_notice c_note cert >>= comErr
+                    withZephyr $ z_send_notice c_note cert >>= comErr
     where cert = case z_auth note of
                    Unauthenticated -> z_make_authentication
                    _               -> nullFunPtr
 
 receiveNotice :: IO ZNotice
-receiveNotice = allocaZNotice $ \c_note -> do
+receiveNotice = withZephyr $ allocaZNotice $ \c_note -> do
                   z_receive_notice c_note nullPtr >>= comErr
                   finally (parseZNotice  c_note) (z_free_notice c_note)
 
 pendingNotices :: IO Int
-pendingNotices = fromIntegral `liftM` z_pending
+pendingNotices = withZephyr $ fromIntegral `liftM` z_pending
 
 cancelSubscriptions :: IO ()
-cancelSubscriptions = z_cancel_subscriptions defaultPort >>= comErr
+cancelSubscriptions = withZephyr $ z_cancel_subscriptions defaultPort >>= comErr
 
 subscribeTo :: [ZSubscription] -> IO ()
 subscribeTo subs = withSubs subs $ \(c_subs, c_len) -> do
-  z_subscribe_to c_subs c_len defaultPort >>= comErr
+  withZephyr $ z_subscribe_to c_subs c_len defaultPort >>= comErr
 
 unsubscribeTo :: [ZSubscription] -> IO ()
 unsubscribeTo subs = withSubs subs $ \(c_subs, c_len) -> do
-  z_unsubscribe_to c_subs c_len defaultPort >>= comErr
+  withZephyr $ z_unsubscribe_to c_subs c_len defaultPort >>= comErr
 
 defaultFmt :: B.ByteString
 defaultFmt = B.pack "Class $class, Instance $instance:\nTo: @bold($recipient) at $time $date\nFrom: @bold{$1 <$sender>}\n\n$2"
