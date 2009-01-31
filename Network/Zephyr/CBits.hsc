@@ -134,7 +134,7 @@ parseZNotice c_note = do
   c_len   <- #{peek ZNotice_t, z_message_len}     c_note
   c_msg   <- #{peek ZNotice_t, z_message}         c_note
   message <- B.packCStringLen (c_msg, c_len)
-  fields  <- return $ filter (/=B.empty) $ B.split '\0' message
+  fields  <- return $ filterFields $ B.split '\0' message
   c_auth  <- z_check_authentication c_note $ #{ptr ZNotice_t, z_uid.zuid_addr} c_note
   auth    <- case c_auth of
                _ | c_auth == zauth_no  -> return Unauthenticated
@@ -153,6 +153,9 @@ parseZNotice c_note = do
                    , z_fields      = fields
                    , z_time        = time
                    }
+    where filterFields fields = if (B.null $ last fields)
+                                then init fields
+                                else fields
 
 
 newtype SockAddr = SockAddr { unSockAddr :: SockAddr }
