@@ -86,7 +86,6 @@ data ZNotice = ZNotice { z_version     :: B.ByteString
                        , z_default_fmt :: B.ByteString
                        , z_kind        :: ZNoticeKind
                        , z_auth        :: ZAuth
-                       , z_authent     :: B.ByteString
                        , z_fields      :: [B.ByteString]
                        , z_time        :: Time.UTCTime
                         }
@@ -130,7 +129,6 @@ parseZNotice c_note = do
   sender  <- #{peek ZNotice_t, z_sender}          c_note >>= B.packCString
   fmt     <- #{peek ZNotice_t, z_default_format}  c_note >>= B.packCString
   kind    <- #{peek ZNotice_t, z_kind}            c_note
-  authent <- #{peek ZNotice_t, z_ascii_authent}   c_note >>= B.packCString
   secs    <- #{peek ZNotice_t, z_time.tv_sec}     c_note
   time    <- return $ POSIXTime.posixSecondsToUTCTime (realToFrac (secs :: CTime))
   c_len   <- #{peek ZNotice_t, z_message_len}     c_note
@@ -152,7 +150,6 @@ parseZNotice c_note = do
                    , z_default_fmt = fmt
                    , z_kind        = kind
                    , z_auth        = auth
-                   , z_authent     = authent
                    , z_fields      = fields
                    , z_time        = time
                    }

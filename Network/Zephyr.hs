@@ -84,7 +84,6 @@ emptyNotice = ZNotice { z_version     = undefined
                       , z_default_fmt = defaultFmt
                       , z_kind        = undefined
                       , z_auth        = Unauthenticated
-                      , z_authent     = undefined
                       , z_fields      = []
                       , z_time        = undefined
                       }

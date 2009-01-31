@@ -28,7 +28,6 @@ recvLoop :: IO ()
 recvLoop = do note   <- receiveNotice
               putStrLn $ "Zephyr from " ++ (B.unpack $ fromJust $ z_sender note) ++ ":"
               putStrLn $ "Auth: " ++ (show $ z_auth note)
-              putStrLn $ "Authenticating entity: " ++ (B.unpack $ z_authent note)
               printFields $ z_fields note
               hFlush stdout
               recvLoop
