@@ -57,6 +57,9 @@ receiveNotice = allocaZNotice $ \c_note -> do
                   z_receive_notice c_note nullPtr >>= comErr
                   finally (parseZNotice  c_note) (z_free_notice c_note)
 
+pendingNotices :: IO Int
+pendingNotices = fromIntegral `liftM` z_pending
+
 cancelSubscriptions :: IO ()
 cancelSubscriptions = z_cancel_subscriptions defaultPort >>= comErr
 

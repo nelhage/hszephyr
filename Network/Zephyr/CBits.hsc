@@ -206,6 +206,9 @@ foreign import ccall unsafe "ZCheckAuthentication"
 foreign import ccall unsafe "ZFreeNotice"
         z_free_notice    :: Ptr ZNotice -> IO ()
 
+foreign import ccall unsafe "ZPending"
+        z_pending       :: IO CInt
+
 foreign import ccall unsafe "string.h"
     memset  :: Ptr a -> CInt -> CSize -> IO ()
 
