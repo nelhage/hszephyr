@@ -1,5 +1,6 @@
 import Network.Zephyr
 import Control.Monad
+import Control.Concurrent
 import qualified Data.ByteString.Char8 as B
 import Data.Maybe (fromJust)
 import System.IO
@@ -12,25 +13,31 @@ main = do initialize
           realm  <- getRealm
           putStrLn $ "Sending as " ++ sender
           putStrLn $ "Sending from " ++ realm
-          subscribeTo [ZSubscription (B.pack "nelhage-test") (B.pack "*") (B.pack "*")]
-          recvLoop
-          -- sendNotice note
+          subscribeTo [ZSubscription (B.pack "nelhage-stress") (B.pack "*") (B.pack "*")]
+          mapM_ (forkIO . recvLoop) [1..10]
+          recvLoop 11
+
+sendZephyrClass :: B.ByteString -> B.ByteString -> B.ByteString -> IO ()
+sendZephyrClass cls inst body = sendNotice note
     where note = emptyNotice { z_kind      = kind_acked
-                             , z_class     = B.pack "nelhage-test"
-                             , z_instance  = B.pack "hszephyr"
+                             , z_class     = cls
+                             , z_instance  = inst
                              , z_recipient = B.pack "*"
-                             , z_fields    = map B.pack $ [ "Nelson Elhage"
-                                                          , "Hello from Haskell" ]
-                             , z_auth      = Authenticated
+                             , z_opcode    = B.pack "auto"
+                             , z_fields    = [ B.pack "HsZephyr Stress Test"
+                                             , body ]
+                             , z_auth      = Unauthenticated
                              }
 
-recvLoop :: IO ()
-recvLoop = do note   <- receiveNotice
-              putStrLn $ "Zephyr from " ++ (B.unpack $ fromJust $ z_sender note) ++ ":"
-              putStrLn $ "Auth: " ++ (show $ z_auth note)
-              printFields $ z_fields note
-              hFlush stdout
-              recvLoop
+recvLoop :: Int -> IO ()
+recvLoop i = let prefix = (B.pack "[") `B.append` (B.pack $ show i) `B.append` (B.pack "] ") in
+             do note   <- receiveNotice
+                if (z_opcode note /= B.pack "auto")
+                 then do sendZephyrClass (z_class note)
+                                         (z_instance note) $
+                                         prefix `B.append` (z_fields note !! 1)
+                 else return ()
+                recvLoop i
 
 printFields :: [B.ByteString] -> IO ()
 printFields fields = loop 1 fields

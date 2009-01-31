@@ -153,9 +153,10 @@ parseZNotice c_note = do
                    , z_fields      = fields
                    , z_time        = time
                    }
-    where filterFields fields = if (B.null $ last fields)
-                                then init fields
-                                else fields
+    where filterFields = id
+          -- filterFields fields = if (B.null $ last fields)
+          --                       then init fields
+          --                      else fields
 
 
 newtype SockAddr = SockAddr { unSockAddr :: SockAddr }
@@ -204,10 +205,13 @@ foreign import ccall unsafe "ZCheckAuthentication"
         z_check_authentication :: Ptr ZNotice -> Ptr SockAddr -> IO Code_t
 
 foreign import ccall unsafe "ZFreeNotice"
-        z_free_notice    :: Ptr ZNotice -> IO ()
+        z_free_notice   :: Ptr ZNotice -> IO ()
 
 foreign import ccall unsafe "ZPending"
         z_pending       :: IO CInt
+
+foreign import ccall unsafe "&__Zephyr_fd"
+        z_fd            :: Ptr CInt
 
 foreign import ccall unsafe "string.h"
     memset  :: Ptr a -> CInt -> CSize -> IO ()

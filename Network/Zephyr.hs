@@ -1,5 +1,5 @@
 module Network.Zephyr ( initialize, openPort, getSender, getRealm
-                      , sendNotice, receiveNotice
+                      , sendNotice, receiveNotice, pendingNotices, tryReceiveNotice
                       , cancelSubscriptions, subscribeTo, unsubscribeTo
                       , defaultFmt, emptyNotice
                       , ZNotice(..), ZNoticeKind(..), ZAuth(..)
@@ -14,7 +14,7 @@ import Foreign.C.Types
 import Foreign.C.String
 
 import System.IO.Unsafe
-import System.Posix.Types (Fd)
+import System.Posix.Types (Fd(Fd))
 
 import qualified Data.ByteString.Char8 as B
 
@@ -61,12 +61,30 @@ sendNotice note = withZNotice note $ \c_note -> do
                    _               -> nullFunPtr
 
 receiveNotice :: IO ZNotice
-receiveNotice = withZephyr $ allocaZNotice $ \c_note -> do
+receiveNotice = do fd <- Fd `liftM` peek z_fd
+                   loop fd
+    where loop fd = do note <- tryReceiveNotice
+                       case note of
+                         Just  n -> return n
+                         Nothing -> loop fd
+
+receiveNotice' :: IO ZNotice
+receiveNotice' = allocaZNotice $ \c_note -> do
                   z_receive_notice c_note nullPtr >>= comErr
                   finally (parseZNotice  c_note) (z_free_notice c_note)
 
-pendingNotices :: IO Int
-pendingNotices = withZephyr $ fromIntegral `liftM` z_pending
+pendingNotices' :: IO Int
+pendingNotices' = fromIntegral `liftM` z_pending
+
+pendingNotices = withZephyr pendingNotices
+
+tryReceiveNotice :: IO (Maybe ZNotice)
+tryReceiveNotice = withZephyr $ do
+                     p <- pendingNotices'
+                     if (p > 0)
+                      then Just `liftM` receiveNotice'
+                      else return Nothing
+
 
 cancelSubscriptions :: IO ()
 cancelSubscriptions = withZephyr $ z_cancel_subscriptions defaultPort >>= comErr
