@@ -1,11 +1,12 @@
-module Network.Zephyr ( initialize, openPort, getSender, getRealm, sendNotice
+module Network.Zephyr ( initialize, openPort, getSender, getRealm
+                      , sendNotice, receiveNotice
                       , cancelSubscriptions, subscribeTo, unsubscribeTo
                       , defaultFmt, emptyNotice
-                      , ZNotice(..), ZNoticeKind(..)
+                      , ZNotice(..), ZNoticeKind(..), ZAuth(..)
+                      , ZSubscription(..)
                       , kind_unsafe, kind_unacked, kind_acked
                       , kind_hmack, kind_hmctl, kind_servack
                       , kind_servnak, kind_clientack, kind_stat
-                      , ZAuth(..)
                       ) where
 
 import Foreign
@@ -18,11 +19,9 @@ import qualified Data.ByteString.Char8 as B
 
 import Control.Monad
 import Control.Monad.Trans
+import Control.Exception
 
 import Network.Zephyr.CBits
-
-error_message :: Code_t -> String
-error_message c = unsafePerformIO $ c_error_message c >>= peekCString
 
 defaultPort :: Port
 defaultPort = 0
@@ -47,11 +46,16 @@ openPort = alloca $ \ptr -> do
              fromIntegral `liftM` peek ptr
 
 sendNotice :: ZNotice -> IO ()
-sendNotice note = withZNotice_t note $ \c_note -> do
+sendNotice note = withZNotice note $ \c_note -> do
                     z_send_notice c_note cert >>= comErr
     where cert = case z_auth note of
                    Unauthenticated -> z_make_authentication
                    _               -> nullFunPtr
+
+receiveNotice :: IO ZNotice
+receiveNotice = allocaZNotice $ \c_note -> do
+                  z_receive_notice c_note nullPtr >>= comErr
+                  finally (parseZNotice  c_note) (z_free_notice c_note)
 
 cancelSubscriptions :: IO ()
 cancelSubscriptions = z_cancel_subscriptions defaultPort >>= comErr

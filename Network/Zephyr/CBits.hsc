@@ -10,6 +10,7 @@ import Foreign.C.String
 import qualified Data.ByteString.Char8 as B
 
 import qualified Data.Time as Time
+import qualified Data.Time.Clock.POSIX as POSIXTime
 
 #include <zephyr/zephyr.h>
 
@@ -22,6 +23,9 @@ newtype Code_t = Code_t {unCode_t :: CInt}
  , zauth_yes            = ZAUTH_YES
  , zauth_failed         = ZAUTH_FAILED
   }
+
+error_message :: Code_t -> String
+error_message c = unsafePerformIO $ c_error_message c >>= peekCString
 
 newtype ZNoticeKind = ZNoticeKind { unZNoticeKind :: CInt }
     deriving (Show, Eq, Storable);
@@ -84,12 +88,18 @@ data ZNotice = ZNotice { z_version     :: B.ByteString
                        , z_auth        :: ZAuth
                        , z_authent     :: B.ByteString
                        , z_fields      :: [B.ByteString]
-                       , z_time        :: Time.LocalTime
+                       , z_time        :: Time.UTCTime
                         }
 
-withZNotice_t :: ZNotice -> (Ptr ZNotice -> IO a) -> IO a
-withZNotice_t note comp = do
-  allocaBytes (#{size ZNotice_t})     $ \c_note      -> do
+allocaZNotice :: (Ptr ZNotice -> IO a) -> IO a
+allocaZNotice comp = allocaBytes (#{size ZNotice_t}) $ \c_note -> do
+                       memset c_note 0 (#{size ZNotice_t})
+                       comp c_note
+
+
+withZNotice :: ZNotice -> (Ptr ZNotice -> IO a) -> IO a
+withZNotice note comp = do
+  allocaZNotice                       $ \c_note      -> do
     B.useAsCString (z_class note)     $ \c_class     -> do
     B.useAsCString (z_instance note)  $ \c_instance  -> do
     B.useAsCString (z_recipient note) $ \c_recipient -> do
@@ -97,7 +107,6 @@ withZNotice_t note comp = do
     B.useAsCString (z_default_fmt note) $ \c_fmt     -> do
     B.useAsCStringLen message         $ \(c_message, c_msg_len) -> do
     maybeWith B.useAsCString (z_sender note)  $ \c_sender       -> do
-        memset c_note 0 (#{size ZNotice_t})
         #{poke ZNotice_t, z_kind}        c_note (z_kind note)
         #{poke ZNotice_t, z_port}        c_note (0::CInt)
         #{poke ZNotice_t, z_class}       c_note c_class
@@ -110,6 +119,43 @@ withZNotice_t note comp = do
         comp c_note
       where message :: B.ByteString
             message = B.append (B.intercalate (B.pack "\0") $ z_fields note) (B.pack "\0")
+
+parseZNotice :: Ptr ZNotice -> IO ZNotice
+parseZNotice c_note = do
+  version <- #{peek ZNotice_t, z_version}         c_note >>= B.packCString
+  cls     <- #{peek ZNotice_t, z_class}           c_note >>= B.packCString
+  inst    <- #{peek ZNotice_t, z_class_inst}      c_note >>= B.packCString
+  recip   <- #{peek ZNotice_t, z_recipient}       c_note >>= B.packCString
+  opcode  <- #{peek ZNotice_t, z_opcode}          c_note >>= B.packCString
+  sender  <- #{peek ZNotice_t, z_sender}          c_note >>= B.packCString
+  fmt     <- #{peek ZNotice_t, z_default_format}  c_note >>= B.packCString
+  kind    <- #{peek ZNotice_t, z_kind}            c_note
+  authent <- #{peek ZNotice_t, z_ascii_authent}   c_note >>= B.packCString
+  secs    <- #{peek ZNotice_t, z_time.tv_sec}     c_note
+  time    <- return $ POSIXTime.posixSecondsToUTCTime (realToFrac (secs :: CTime))
+  c_len   <- #{peek ZNotice_t, z_message_len}     c_note
+  c_msg   <- #{peek ZNotice_t, z_message}         c_note
+  message <- B.packCStringLen (c_msg, c_len)
+  fields  <- return $ filter (/=B.empty) $ B.split '\0' message
+  c_auth  <- z_check_authentication c_note $ #{ptr ZNotice_t, z_uid.zuid_addr} c_note
+  auth    <- case c_auth of
+               _ | c_auth == zauth_no  -> return Unauthenticated
+                 | c_auth == zauth_yes -> return Authenticated
+                 | c_auth == zauth_failed -> return AuthenticationFailed
+                 | otherwise           -> fail $ error_message c_auth
+  return $ ZNotice { z_version     = version
+                   , z_class       = cls
+                   , z_instance    = inst
+                   , z_recipient   = recip
+                   , z_opcode      = opcode
+                   , z_sender      = Just sender
+                   , z_default_fmt = fmt
+                   , z_kind        = kind
+                   , z_auth        = auth
+                   , z_authent     = authent
+                   , z_fields      = fields
+                   , z_time        = time
+                   }
 
 
 newtype SockAddr = SockAddr { unSockAddr :: SockAddr }
@@ -156,6 +202,9 @@ foreign import ccall unsafe "ZReceiveNotice"
 
 foreign import ccall unsafe "ZCheckAuthentication"
         z_check_authentication :: Ptr ZNotice -> Ptr SockAddr -> IO Code_t
+
+foreign import ccall unsafe "ZFreeNotice"
+        z_free_notice    :: Ptr ZNotice -> IO ()
 
 foreign import ccall unsafe "string.h"
     memset  :: Ptr a -> CInt -> CSize -> IO ()
