@@ -14,7 +14,6 @@ import Foreign.C.Types
 import Foreign.C.String
 
 import System.IO.Unsafe
-import System.Posix.Types (Fd(Fd))
 
 import qualified Data.ByteString.Char8 as B
 
@@ -61,7 +60,7 @@ sendNotice note = withZNotice note $ \c_note -> do
                    _               -> nullFunPtr
 
 receiveNotice :: IO ZNotice
-receiveNotice = do fd <- Fd `liftM` peek z_fd
+receiveNotice = do fd <- peek z_fd
                    loop fd
     where loop fd = do note <- tryReceiveNotice
                        case note of
@@ -76,6 +75,7 @@ receiveNotice' = allocaZNotice $ \c_note -> do
 pendingNotices' :: IO Int
 pendingNotices' = fromIntegral `liftM` z_pending
 
+pendingNotices  :: IO Int
 pendingNotices = withZephyr pendingNotices
 
 tryReceiveNotice :: IO (Maybe ZNotice)
