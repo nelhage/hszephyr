@@ -16,6 +16,7 @@ import qualified Data.Time.Clock.POSIX as POSIXTime
 
 #include <zephyr/zephyr.h>
 
+-- | Wrapper for the Zephyr @Code_t@ type
 newtype Code_t = Code_t {unCode_t :: CInt}
     deriving (Eq, Show)
 
@@ -26,9 +27,12 @@ newtype Code_t = Code_t {unCode_t :: CInt}
  , zauth_failed         = ZAUTH_FAILED
   }
 
+-- | Translate a 'Code_t' into a human-readable error using @com_err@.
 error_message :: Code_t -> String
 error_message c = unsafePerformIO $ c_error_message c >>= peekCString
 
+-- | 'ZNoticeKind' represent the kinds of 'ZNotice's sent or received
+--   by the Zephyr system.
 newtype ZNoticeKind = ZNoticeKind { unZNoticeKind :: CInt }
     deriving (Show, Eq, Storable);
 
@@ -44,14 +48,25 @@ newtype ZNoticeKind = ZNoticeKind { unZNoticeKind :: CInt }
  , kind_stat      = STAT
  }
 
-data ZAuth = Authenticated | Unauthenticated | AuthenticationFailed
+-- | 'ZAuth' represents the authentication used when sending or
+--   receiving a Zephyr.
+data ZAuth = Authenticated    -- ^ The message was received with
+                              -- correct authentication, or should be
+                              -- authenticated for outgoing notices.
+           | Unauthenticated  -- ^ The message was or will be sent
+                              -- with no authentication.
+           | AuthenticationFailed -- ^ The message was received with
+                                  -- invalid authentication.
            deriving (Show, Eq, Enum, Bounded)
 
+-- | Represents a Zephyr triple for the purposes of subscribing or
+--   unsubscribing to zephyrs.
 data ZSubscription = ZSubscription { sub_class     :: B.ByteString
                                    , sub_instance  :: B.ByteString
                                    , sub_recipient :: B.ByteString
                                    }
 
+-- | Helper combinator to marshal a 'ZSubscription'
 withZSubscription :: ZSubscription -> (Ptr ZSubscription -> IO a) -> IO a
 withZSubscription sub code = do
   B.useAsCString (sub_class sub)        $  \c_class -> do
@@ -66,6 +81,7 @@ withZSubscription sub code = do
 subSize :: Int
 subSize = #{size ZSubscription_t}
 
+-- | Helper combinator to marshal a list of 'ZSubscription's
 withSubs :: [ZSubscription] -> ((Ptr ZSubscription, CInt) -> IO a) -> IO a
 withSubs subs code = let n_subs = length subs in
   withMany withZSubscription subs $ \c_subs  -> do
@@ -76,28 +92,63 @@ withSubs subs code = let n_subs = length subs in
                                     copySubs (to `plusPtr` subSize) ss
             copySubs _ []      = return ()
 
+{- | 'ZNotice' represents a Zephyr notice. All fields of this record
+      are filled-in for received notices. For outoing notices, only
+      the following fields are relevant:
+
+       * @z_class@
+
+       * @z_instance@
+
+       * @z_opcode@
+
+       * @z_sender@
+
+       * @z_default_fmt@
+
+       * @z_kind@
+
+       * @z_auth@
+
+       * @z_fields@
+-}
 data ZNotice = ZNotice { z_version     :: B.ByteString
+                       -- ^ The Zephyr version this notice was sent with.
                        , z_class       :: B.ByteString
+                       -- ^ The Zephyr class of this notice.
                        , z_instance    :: B.ByteString
+                       -- ^ The Zephyr instance of this notice.
                        , z_recipient   :: B.ByteString
+                       -- ^ The recipient of this notice.
                        , z_opcode      :: B.ByteString
-                       -- z_sender will always be a Just on received
-                       -- notices. Set z_sender = Nothing to
-                       -- automatically populate it when sending.
+                       -- ^ The opcode of this notice.
                        , z_sender      :: Maybe B.ByteString
+                       -- ^ The sender of this Notice.
+                       -- This field is always a 'Just' for received
+                       -- notices. Setting it to 'Nothing' for sent
+                       -- notices will cause it to automatically be
+                       -- filled in.
                        , z_default_fmt :: B.ByteString
+                       -- ^ The default format clients should use to
+                       --   render this notice.
                        , z_kind        :: ZNoticeKind
+                       -- ^ The kind of this notice (determines how it
+                       --   will be ACK'd).
                        , z_auth        :: ZAuth
+                       -- ^ Whether this notice is authenticated.
                        , z_fields      :: [B.ByteString]
+                       -- ^ A list of the fields in this notice.
                        , z_time        :: Time.UTCTime
+                       -- ^ The time this notice was sent.
                         }
 
+-- | A helper to allocate memory for a single C @ZNotice_t@.
 allocaZNotice :: (Ptr ZNotice -> IO a) -> IO a
 allocaZNotice comp = allocaBytes (#{size ZNotice_t}) $ \c_note -> do
                        memset c_note 0 (#{size ZNotice_t})
                        comp c_note
 
-
+-- | A helper combinator to marshal a 'ZNotice' to a @ZNotice_t@.
 withZNotice :: ZNotice -> (Ptr ZNotice -> IO a) -> IO a
 withZNotice note comp = do
   allocaZNotice                       $ \c_note      -> do
@@ -121,6 +172,7 @@ withZNotice note comp = do
       where message :: B.ByteString
             message = B.append (B.intercalate (B.pack "\0") $ z_fields note) (B.pack "\0")
 
+-- | Parse a @ZNotice_t@ into a 'ZNotice' record.
 parseZNotice :: Ptr ZNotice -> IO ZNotice
 parseZNotice c_note = do
   version <- #{peek ZNotice_t, z_version}         c_note >>= B.packCString
