@@ -7,7 +7,6 @@ import System.IO
 
 main :: IO ()
 main = do initialize
-          openPort
           cancelSubscriptions
           sender <- getSender
           realm  <- getRealm
