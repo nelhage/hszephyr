@@ -1,7 +1,7 @@
 Name:               hszephyr
 Author:             Nelson Elhage <nelhage@nelhage.com>
 Maintainer:         Nelson Elhage <nelhage@nelhage.com>
-Version:            0.1
+Version:            0.1+dev
 License:            BSD3
 License-File:       LICENSE
 Category:           Network

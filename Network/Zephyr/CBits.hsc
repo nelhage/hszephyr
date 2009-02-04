@@ -9,7 +9,7 @@ import Foreign.C.String
 
 import System.Posix.Types (Fd(Fd))
 
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString as B
 
 import qualified Data.Time as Time
 import qualified Data.Time.Clock.POSIX as POSIXTime
@@ -170,7 +170,7 @@ withZNotice note comp = do
         #{poke ZNotice_t, z_sender}      c_note c_sender
         comp c_note
       where message :: B.ByteString
-            message = B.append (B.intercalate (B.pack "\0") $ z_fields note) (B.pack "\0")
+            message = B.concat $ map (`B.append` B.singleton 0) $ z_fields note
 
 -- | Parse a @ZNotice_t@ into a 'ZNotice' record.
 parseZNotice :: Ptr ZNotice -> IO ZNotice
@@ -188,7 +188,7 @@ parseZNotice c_note = do
   c_len   <- #{peek ZNotice_t, z_message_len}     c_note
   c_msg   <- #{peek ZNotice_t, z_message}         c_note
   message <- B.packCStringLen (c_msg, c_len)
-  fields  <- return $ filterFields $ B.split '\0' message
+  fields  <- return $ filterFields $ B.split 0 message
   c_auth  <- z_check_authentication c_note $ #{ptr ZNotice_t, z_uid.zuid_addr} c_note
   auth    <- case c_auth of
                _ | c_auth == zauth_no  -> return Unauthenticated
