@@ -16,7 +16,7 @@ Cabal-Version:      >= 1.2
 Extra-Source-Files:
    Network/Zephyr/CBits.hsc
 Library
-  Build-Depends:      base, mtl, bytestring, time
+  Build-Depends:      base >=3 && < 5, mtl, bytestring, time
   Extra-Libraries:    zephyr, com_err
   Exposed-Modules:    Network.Zephyr
   Other-Modules:      Network.Zephyr.CBits
