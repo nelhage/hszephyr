@@ -71,8 +71,8 @@ sendNotice :: ZNotice -> IO ()
 sendNotice note = withZNotice note $ \c_note -> do
                     withZephyr $ z_send_notice c_note cert >>= comErr
     where cert = case z_auth note of
-                   Unauthenticated -> z_make_authentication
-                   _               -> nullFunPtr
+                   Authenticated -> z_make_authentication
+                   _             -> nullFunPtr
 
 -- | Receive a 'ZNotice' from the zephyr servers. Blocks until a
 --   notice is available.
