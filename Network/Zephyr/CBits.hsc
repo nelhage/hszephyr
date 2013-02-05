@@ -163,6 +163,7 @@ withZNotice note comp = do
         #{poke ZNotice_t, z_port}        c_note (0::CInt)
         #{poke ZNotice_t, z_class}       c_note c_class
         #{poke ZNotice_t, z_class_inst}  c_note c_instance
+        #{poke ZNotice_t, z_recipient}   c_note c_recipient
         #{poke ZNotice_t, z_opcode}      c_note c_opcode
         #{poke ZNotice_t, z_default_format} c_note c_fmt
         #{poke ZNotice_t, z_message}     c_note c_message
