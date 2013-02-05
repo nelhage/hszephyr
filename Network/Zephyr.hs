@@ -18,7 +18,7 @@ module Network.Zephyr ( initialize, getSender, getRealm
                       , kind_servnak, kind_clientack, kind_stat
                       ) where
 
-import Foreign
+import Foreign hiding (unsafePerformIO)
 import Foreign.C.Types
 import Foreign.C.String
 

@@ -1,13 +1,13 @@
 {-# LANGUAGE CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
-{-# INCLUDE <zephyr/zephyr.h> #-}
 
 module Network.Zephyr.CBits where
 
-import Foreign
+import Foreign hiding (unsafePerformIO)
 import Foreign.C.Types
 import Foreign.C.String
 
 import System.Posix.Types (Fd(Fd))
+import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.ByteString as B
 
@@ -185,7 +185,8 @@ parseZNotice c_note = do
   kind    <- #{peek ZNotice_t, z_kind}            c_note
   secs    <- #{peek ZNotice_t, z_time.tv_sec}     c_note
   time    <- return $ POSIXTime.posixSecondsToUTCTime (realToFrac (secs :: CTime))
-  c_len   <- #{peek ZNotice_t, z_message_len}     c_note
+  c_len'  <- #{peek ZNotice_t, z_message_len}     c_note
+  let c_len = fromIntegral (c_len' :: CInt)
   c_msg   <- #{peek ZNotice_t, z_message}         c_note
   message <- B.packCStringLen (c_msg, c_len)
   fields  <- return $ filterFields $ B.split 0 message
